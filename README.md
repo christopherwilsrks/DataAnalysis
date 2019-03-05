@@ -4,7 +4,7 @@
     - [1. 鸢尾花卉聚类结果](#1-%E9%B8%A2%E5%B0%BE%E8%8A%B1%E5%8D%89%E8%81%9A%E7%B1%BB%E7%BB%93%E6%9E%9C)
     - [2. 随机二维散点聚类结果](#2-%E9%9A%8F%E6%9C%BA%E4%BA%8C%E7%BB%B4%E6%95%A3%E7%82%B9%E8%81%9A%E7%B1%BB%E7%BB%93%E6%9E%9C)
 
-[数据集](http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data)
+使用UCI的鸢尾花卉[数据集](http://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data)
 
 以及随机生成二维散点，[文件](dataset/dataSet.csv)
 
