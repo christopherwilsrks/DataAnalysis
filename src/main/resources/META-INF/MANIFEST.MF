@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: commons-lang3-3.9.jar commons-io-2.5.jar itextpdf-5.5.13.j
+ ar
+
