@@ -62,6 +62,10 @@ public class RunTest extends Thread {
             double        p       = 100. * (i - start_user_id) / (end_user_id - start_user_id);
             String        process = df.format(p) + "%";
             System.out.println(String.format("Thread [%s] finish user [%s] in [%s], now [%s]", center(String.valueOf(num), 3), center(String.valueOf(i), 5), center(end + 's', 7), center(process, 8)));
+            int usage = User.usage.get();
+            if (usage % 1000 == 0) {
+                System.out.println(String.format("itemAttribute usage: %d", usage));
+            }
         }
 
     }
@@ -187,7 +191,6 @@ class Main {
         preRun(baseDir);
 
         System.out.println(String.format("\n\nRunning recommender.jar with [%d] threads and matching for top [%d] most similar items...\n\n-------------------------------------------------------------\n", threads, K));
-        ApplicationContext actx = new ClassPathXmlApplicationContext("classpath:spring/applicationContext.xml");
 
         for (int i = 0; i < RunTest.NUM_THREADS; i++) {
             new Thread(new RunTest(i)).start();

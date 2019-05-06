@@ -3,12 +3,15 @@ package com.recommender;
 import org.apache.commons.io.FileUtils;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.center;
+import static org.apache.commons.lang3.StringUtils.lowerCase;
 
 public class User {
 
@@ -26,8 +29,8 @@ public class User {
     private Double[][]                          sim_matrix;
     private Map<Integer, Map<Integer, Integer>> mapItemUserScore;
 
-    public static Double[] itemAVG;
-    public static Double[] userAVG;
+    public static Double[]             itemAVG;
+    public static Double[]             userAVG;
     public static Map<Integer, String> itemAttribute;
 
     // 表示使用 itemAttribute 的次数
@@ -89,7 +92,7 @@ public class User {
                     if (row != col && (row < count || col < count)) {
                         // 判断这两个items是否能够通过itemAttribute文件求出相似度
                         if (isSame(mapItems[row], mapItems[col])) {
-                            System.out.println(String.format("Running user [%s] itemAttribute usage: %d", center(String.valueOf(userId), 5), usage.addAndGet(1)));
+                            usage.getAndAdd(1);
                             val = 1.;
                         } else {
                             Map<Integer, Integer> map1 = mapItemUserScore.get(mapItems[row]);
@@ -127,10 +130,12 @@ public class User {
 
         Arrays.sort(items_clone);
 
-        LineNumberReader lr = new LineNumberReader(new FileReader(baseDir + File.separator + "dataset/inverse_item.txt"));
+        LineNumberReader lr  = new LineNumberReader(new FileReader(baseDir + File.separator + "dataset/inverse_item.txt"));
+        LineNumberReader lrt = new LineNumberReader(new FileReader(baseDir + File.separator + "dataset/itemmap.txt"));
 
         for (Integer itemId : items_clone) {
-            String[] map_line = FileUtils.readLines(new File(baseDir + File.separator + "dataset/itemmap.txt"), UTF_8).get(itemId).split("\\|");
+            readLineNum(lrt, itemId);
+            String[] map_line = lrt.readLine().split("\\|");
             int      line_num = Integer.parseInt(map_line[1]);
             int      count    = Integer.parseInt(map_line[2]);
 
@@ -145,6 +150,8 @@ public class User {
             }
             mapItemUserScore.put(itemId, mapUserScore);
         }
+
+        lrt.close();
         lr.close();
     }
 
@@ -235,26 +242,52 @@ public class User {
 
     public void process(int num) throws IOException {
 
-        BufferedWriter trainW = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTrain-" + num + ".txt", true));
-        BufferedWriter testW  = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTest-" + num + ".txt", true));
 
-        trainW.write(userId + "|" + count + "\n");
+        RandomAccessFile trainW = new RandomAccessFile(baseDir + File.separator + "result-K" + K + "/preTrain-" + num + ".txt", "rw");
+//        BufferedWriter trainW = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTrain-" + num + ".txt", true), 10 * 1024 * 1024);
+        BufferedWriter testW = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTest-" + num + ".txt", true));
+
+        long fileLength = trainW.length();
+        trainW.seek(fileLength);
+
+        FileChannel channel = trainW.getChannel();
+
+        String     output   = userId + "|" + count + "\n";
+        byte[]     strBytes = output.getBytes();
+        ByteBuffer buffer   = ByteBuffer.allocate(strBytes.length);
+        buffer.put(strBytes);
+        buffer.flip();
+        channel.write(buffer);
+
         testW.write(userId + "|" + "6\n");
 
+        System.out.println("start writing...");
+
+        long predict = 0;
+        long start = System.currentTimeMillis();
         for (int i = 0; i < count + TEST_COUNT; i++) {
+            long _start = System.currentTimeMillis();
             double p = predictItem(i, top_k(i));
+            predict += System.currentTimeMillis() - _start;
             double r = i < count ? ratings.get(mapItems[i]) : -1;
             if (i < count) {
-                trainW.write(mapItems[i] + "|" + p + "|" + r + "\n");
+                output = mapItems[i] + "|" + p + "|" + r + "\n";
+                strBytes = output.getBytes();
+                buffer   = ByteBuffer.allocate(strBytes.length);
+                buffer.put(strBytes);
+                buffer.flip();
+                channel.write(buffer);
+//                trainW.write((mapItems[i] + "|" + p + "|" + r + "\n").getBytes("UTF-8"));
             } else {
                 testW.write(mapItems[i] + "|" + p + "\n");
             }
         }
-        trainW.flush();
+        System.out.println("predict: " + predict / 1000. + "s");
+        System.out.println("write: " + (System.currentTimeMillis() - start - predict) / 1000. + "s");
+        channel.close();
         testW.flush();
         trainW.close();
         testW.close();
-
     }
 
     Double getSim(int item1, int item2) {
