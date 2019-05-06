@@ -5,16 +5,17 @@ import org.apache.commons.io.FileUtils;
 import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.center;
 
 public class User {
 
-    private final static int K          = 50;
+    public static        int K          = 50;
     private final static int TEST_COUNT = 6;
-    public final static int NUM_USERS  = 19835;
-    public final static int NUM_ITEMS  = 624961;
+    public final static  int NUM_USERS  = 19835;
+    public final static  int NUM_ITEMS  = 624961;
 
     public static String baseDir;
 
@@ -27,6 +28,10 @@ public class User {
 
     public static Double[] itemAVG;
     public static Double[] userAVG;
+    public static Map<Integer, String> itemAttribute;
+
+    // 表示使用 itemAttribute 的次数
+    public static AtomicInteger usage = new AtomicInteger(0);
 
     public User(int userId) throws IOException {
         this.userId = userId;
@@ -82,9 +87,15 @@ public class User {
                 for (int col = row; col < count + TEST_COUNT; col++) {
                     Double val = -1.;
                     if (row != col && (row < count || col < count)) {
-                        Map<Integer, Integer> map1 = mapItemUserScore.get(mapItems[row]);
-                        Map<Integer, Integer> map2 = mapItemUserScore.get(mapItems[col]);
-                        val = cal_sim(map1, map2);
+                        // 判断这两个items是否能够通过itemAttribute文件求出相似度
+                        if (isSame(mapItems[row], mapItems[col])) {
+                            System.out.println(String.format("Running user [%s] itemAttribute usage: %d", center(String.valueOf(userId), 5), usage.addAndGet(1)));
+                            val = 1.;
+                        } else {
+                            Map<Integer, Integer> map1 = mapItemUserScore.get(mapItems[row]);
+                            Map<Integer, Integer> map2 = mapItemUserScore.get(mapItems[col]);
+                            val = cal_sim(map1, map2);
+                        }
                     }
                     if (row < count) {
                         sim_matrix[row][col] = col < count ? val : -1.;
@@ -95,6 +106,18 @@ public class User {
                 }
             }
         }
+    }
+
+    private boolean isSame(int item1, int item2) {
+        String s1 = itemAttribute.get(item1);
+        if (s1 == null) {
+            return false;
+        }
+        String s2 = itemAttribute.get(item2);
+        if (s2 == null) {
+            return false;
+        }
+        return s1.equals(s2) && !s1.contains("None") && !s2.contains("None");
     }
 
     // 查询所有对 item 评分过的 user 和 score
@@ -180,7 +203,7 @@ public class User {
         Arrays.sort(indexArray, comparator);
 
         // 这里防止 top k 越界
-        int k = Math.min(K, count);
+        int        k     = Math.min(K, count);
         Double[][] top_k = new Double[k][3];
         for (int i = 0; i < k; i++) {
             top_k[i][0] = Double.valueOf(mapItems[indexArray[i]]);
@@ -212,8 +235,8 @@ public class User {
 
     public void process(int num) throws IOException {
 
-        BufferedWriter trainW = new BufferedWriter(new FileWriter(baseDir + File.separator + "result/preTrain-" + num + ".txt", true));
-        BufferedWriter testW  = new BufferedWriter(new FileWriter(baseDir + File.separator + "result/preTest-" + num + ".txt", true));
+        BufferedWriter trainW = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTrain-" + num + ".txt", true));
+        BufferedWriter testW  = new BufferedWriter(new FileWriter(baseDir + File.separator + "result-K" + K + "/preTest-" + num + ".txt", true));
 
         trainW.write(userId + "|" + count + "\n");
         testW.write(userId + "|" + "6\n");
@@ -248,7 +271,7 @@ class UserMain {
     public static void main(String[] args) {
 
         int start_user = Integer.parseInt(args[0]);
-        int end_user = Integer.parseInt(args[1]);
+        int end_user   = Integer.parseInt(args[1]);
 
         int num = 10;
 
