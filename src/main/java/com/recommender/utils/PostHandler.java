@@ -1,8 +1,6 @@
-package com.recommender;
+package com.recommender.utils;
 
 import java.io.*;
-
-import static com.recommender.RunTest.NUM_THREADS;
 
 /**
  * @author christ
@@ -16,13 +14,14 @@ public class PostHandler {
         int C = 0;
         File   resultDir = new File(pathName);
         File[] files = resultDir.listFiles();
+        if (files == null) {
+            System.out.println("wrong directory");
+            System.exit(1);
+        }
         for (File file : files) {
-            if (!file.getName().startsWith("preTrain-0")) {
+            if (!file.getName().startsWith("preTrain")) {
                 continue;
             }
-//            if (!file.getName().startsWith("result-train-0")) {
-//                continue;
-//            }
             BufferedReader br     = new BufferedReader(new FileReader(file));
             String         strLine;
             int count;
@@ -30,8 +29,7 @@ public class PostHandler {
                 String[] split = strLine.split("\\|");
                 count = Integer.parseInt(split[1]);
                 while (count-- != 0) {
-                    strLine = br.readLine();
-                    split   = strLine.split("\\|");
+                    split = br.readLine().split("\\|");
                     double predict = Double.parseDouble(split[1]);
                     int rating  = (int) Double.parseDouble(split[2]);
                     top += Math.pow(rating - predict, 2);
@@ -44,6 +42,15 @@ public class PostHandler {
     }
 
     public static void main(String[] args) throws IOException {
-        RMSE("../result-K50");
+        if (args.length != 1) {
+            System.out.println("invalid arguments");
+            System.exit(1);
+        }
+        File file = new File(args[0]);
+        if (!file.exists()) {
+            System.out.println("directory not existed");
+            System.exit(1);
+        }
+        RMSE(args[0]);
     }
 }

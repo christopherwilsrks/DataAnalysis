@@ -1,4 +1,4 @@
-package com.recommender;
+package com.recommender.utils;
 
 import java.util.Comparator;
 
